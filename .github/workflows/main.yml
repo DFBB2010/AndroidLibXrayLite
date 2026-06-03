@@ -19,20 +19,20 @@ jobs:
     steps:
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: 'go.mod'
 
     - name: Install gomobile
       run: |
         go install golang.org/x/mobile/cmd/gomobile@latest
-        echo "$HOME/go/bin" >> $GITHUB_PATH
+        export PATH=$PATH:~/go/bin
         
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
       with:
         log-accepted-android-sdk-licenses: false
         cmdline-tools-version: '14742923'
@@ -48,27 +48,19 @@ jobs:
     - name: Build
       run: |
          mkdir -p assets data
-         # 1. 正常拉取路由规则资源
          bash gen_assets.sh download
          cp -v data/*.dat assets/
-         
-         # 2. 核心修复：彻底同步依赖状态
-         # 强制清除可能存在的 vendor 目录干扰，并强制重新整理依赖树
-         rm -rf vendor
-         go mod tidy
-         
-         # 3. 初始化并执行编译
          gomobile init
-         # 增加 -mod=mod 确保 gomobile 强制读取 go.mod，拒绝使用旧的 vendor 缓存
-         gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0' -mod=mod ./
+         go mod tidy
+         gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0' ./
  
     - name: Upload build artifacts
       if: github.event.inputs.release_tag == ''
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: libv2ray
         path: |
-          ${{ github.workspace }}/libv2ray*
+          ${{ github.workspace }}/libv2ray*r
 
     - name: Upload AndroidLibXrayLite to release
       if: github.event.inputs.release_tag != ''
