@@ -29,7 +29,8 @@ jobs:
     - name: Install gomobile
       run: |
         go install golang.org/x/mobile/cmd/gomobile@latest
-        export PATH=$PATH:~/go/bin
+        # 修复点：将 gomobile 路径写入 GITHUB_PATH，这样后续的所有 steps 都能找到 gomobile 命令
+        echo "$HOME/go/bin" >> $GITHUB_PATH
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v4
@@ -48,19 +49,21 @@ jobs:
     - name: Build
       run: |
          mkdir -p assets data
+         # 这一步会去下载路由资源（如 geoip.dat, geosite.dat 等）
          bash gen_assets.sh download
          cp -v data/*.dat assets/
          gomobile init
+         # 关键点：go mod tidy 会顺着你之前改过的 go.mod 自动去找你 dfbb2010/xray-core 的修改版
          go mod tidy
          gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0' ./
  
     - name: Upload build artifacts
       if: github.event.inputs.release_tag == ''
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v4   # 顺便升级了下上载组件，保证稳定
       with:
         name: libv2ray
         path: |
-          ${{ github.workspace }}/libv2ray*r
+          ${{ github.workspace }}/libv2ray*
 
     - name: Upload AndroidLibXrayLite to release
       if: github.event.inputs.release_tag != ''
